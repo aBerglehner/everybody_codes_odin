@@ -5,6 +5,10 @@ import "core:os"
 import "core:strings"
 
 main :: proc() {
+	part1()
+}
+
+part1 :: proc() {
 	path := "./boiler/test"
 	data, err := os.read_entire_file(path, context.allocator)
 	if err != nil {
@@ -15,4 +19,5 @@ main :: proc() {
 	for line in strings.split(string(data), "\n") {
 		fmt.println(line)
 	}
+
 }
