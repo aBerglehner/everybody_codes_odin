@@ -17,7 +17,7 @@ part1 :: proc() {
 	}
 
 	for line in strings.split(string(data), "\n") {
-		if line == " " {
+		if line == "" {
 			continue
 		}
 		fmt.println(line)
