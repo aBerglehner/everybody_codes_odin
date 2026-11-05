@@ -42,8 +42,10 @@ def part2():
 
     queue = [(most_connections["id"], start_energy)]
 
-    while queue:
-        cur_id, cur_energy = queue.pop(0)
+    head=0
+    while head<len(queue):
+        cur_id, cur_energy = queue[head]
+        head+=1
 
         # Add energy
         energy_by_id[cur_id] += cur_energy
