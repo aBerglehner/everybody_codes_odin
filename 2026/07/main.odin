@@ -130,7 +130,7 @@ part2 :: proc() {
 	arena_alloc := vmem.arena_allocator(&arena)
 	defer vmem.arena_destroy(&arena)
 
-	path := "./07/input"
+	path := "./07/test"
 	data, err := os.read_entire_file(path, arena_alloc)
 	if err != nil {
 		fmt.println("err reading file")
@@ -213,6 +213,13 @@ part2 :: proc() {
 
 }
 
+
+Visit3 :: struct {
+	id:     int,
+	stage:  int,
+	energy: int,
+}
+
 part3 :: proc() {
 	arena: vmem.Arena
 	arena_err := vmem.arena_init_growing(&arena)
@@ -220,7 +227,7 @@ part3 :: proc() {
 	arena_alloc := vmem.arena_allocator(&arena)
 	defer vmem.arena_destroy(&arena)
 
-	path := "./07/test"
+	path := "./07/input"
 	data, err := os.read_entire_file(path, arena_alloc)
 	if err != nil {
 		fmt.println("err reading file")
@@ -272,50 +279,94 @@ part3 :: proc() {
 		mostConnections,
 	)
 
-	startEnergy := 10
-	explosionLimit := 100
+	max := 0
+	id := -1
+	for cloudId in energyById {
+		curRes := calcTotalEnergyForCloud(connectionsById, energyById, cloudId)
+		if curRes > max {
+			max = curRes
+			id = cloudId
+		}
+	}
+	fmt.printfln("id: %d max: %d", id, max)
 
-	q: queue.Queue(Visit)
+}
+
+calcTotalEnergyForCloud :: proc(
+	connectionsById: map[int][]int,
+	energy: map[int]int,
+	cloudId: int,
+) -> int {
+	arena: vmem.Arena
+	arena_err := vmem.arena_init_growing(&arena)
+	ensure(arena_err == nil)
+	arena_alloc := vmem.arena_allocator(&arena)
+	defer vmem.arena_destroy(&arena)
+
+	//copy map
+	energyById := make(map[int]int, arena_alloc)
+	for k, v in energy {
+		energyById[k] = v
+	}
+
+	startEnergy := 10
+	// explosionLimit := 100
+	explosionLimit := 1000000
+
+	q: queue.Queue(Visit3)
 	queue.init(&q, 1000)
 	defer queue.destroy(&q)
-	queue.enqueue(&q, Visit{id = 2, energy = startEnergy})
+	queue.enqueue(&q, Visit3{id = cloudId, energy = startEnergy, stage = 1})
 
-	alreadyDestroyed := make(map[int]bool, arena_alloc)
+	alreadyDestroyedAtStage := make(map[int]int, arena_alloc)
 
 	for queue.len(q) > 0 {
 		cur := queue.dequeue(&q)
-		if cur.id in alreadyDestroyed {
+		bannedSinceStage, ok := alreadyDestroyedAtStage[cur.id]
+		if ok && bannedSinceStage < cur.stage {
+			delete_key(&energyById, cur.id)
 			continue
 		}
 		//if curEnergy is >= explosionLimit -> destroy it, and queue connections with energy 10
 		addedEnergy := energyById[cur.id] + cur.energy
 
+		nextEnergy := cur.energy - 1
+		// fmt.printfln(
+		// 	"cloud: %d got energy: %d no has total energy: %d",
+		// 	cur.id,
+		// 	cur.energy,
+		// 	addedEnergy,
+		// )
+
 		if addedEnergy >= explosionLimit {
-			alreadyDestroyed[cur.id] = true
-			delete_key(&energyById, cur.id)
-			for connectionId in connectionsById[cur.id] {
-				queue.enqueue(&q, Visit{connectionId, startEnergy})
+			if !(cur.id in alreadyDestroyedAtStage) {
+				// fmt.printfln("Explosion cloud: %d total energy: %d", cur.id, addedEnergy)
+				alreadyDestroyedAtStage[cur.id] = cur.stage
+				for connectionId in connectionsById[cur.id] {
+					queue.enqueue(&q, Visit3{connectionId, startEnergy, cur.stage + 1})
+				}
 			}
 		}
 
 		//add energy
 		energyById[cur.id] = addedEnergy
 
-		nextEnergy := cur.energy - 1
 		if nextEnergy == 0 {
 			continue
 		}
 		for connectionId in connectionsById[cur.id] {
-			queue.enqueue(&q, Visit{connectionId, nextEnergy})
+			queue.enqueue(&q, Visit3{connectionId, nextEnergy, cur.stage + 1})
 		}
 	}
 
-	fmt.printfln("energyById: %v", energyById)
+	fmt.printfln("cloud: %d energyById: %v", cloudId, energyById)
 
 	res := 0
 	for _, value in energyById {
-		res += value
+		if value < explosionLimit {
+			res += value
+		}
 	}
 	fmt.println("res: ", res)
-
+	return res
 }
