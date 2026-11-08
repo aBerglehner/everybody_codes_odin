@@ -17,6 +17,33 @@ Unit :: struct {
 	limit:  int,
 }
 
+Memo_Key :: struct {
+	x:      int,
+	t:      int,
+	growth: int,
+}
+
+count_splits :: proc(x, t, growth: int, memo: ^map[Memo_Key]int) -> int {
+	if t <= 0 {
+		return 0
+	}
+	dt := growth - x
+	if t < dt {
+		return 0
+	}
+	key := Memo_Key{x, t, growth}
+	if value, ok := memo^[key]; ok {
+		return value
+	}
+	remaining := t - dt
+	value :=
+		1 +
+		2 * count_splits(growth / 2, remaining, growth, memo) +
+		count_splits(1, remaining, growth, memo)
+	memo^[key] = value
+	return value
+}
+
 part1 :: proc() {
 	arena: vmem.Arena
 	arena_err := vmem.arena_init_growing(&arena)
@@ -199,7 +226,7 @@ part3 :: proc() {
 	arena_alloc := vmem.arena_allocator(&arena)
 	defer vmem.arena_destroy(&arena)
 
-	path := "./09/test"
+	path := "./09/input"
 	data, err := os.read_entire_file(path, arena_alloc)
 	if err != nil {
 		fmt.println("err reading file")
@@ -222,60 +249,24 @@ part3 :: proc() {
 		append(&units, unit)
 		// fmt.printfln("id %d growth %d limit %d", id, growth, limit)
 	}
-	fmt.println(units)
-	fmt.println()
-	//array
-	//we split array[i]== growth-1 else array[i]++
-	//split -> array[i]/2 + append(array[i]/2)+ append(1)
-	//loop through it and check at the end if count >= limit -> return count
 	secondSum := 0
-	outer: for unit in units {
-		branches := make(map[int]int)
-		branches[1] = 1
-		growth := unit.growth
-		limit := unit.limit
-
-		seconds := 2
-		breaks := 0
-		for {
-			newBranches := make(map[int]int)
-			//todo codex what would be an idea so that I don't need to loop over and over again over the map and can faster add stuff to the map
-			//I know this can be done easier
-			for cur, values in branches {
-				if cur == growth - 1 {
-					div := cur / 2
-
-					ones := newBranches[1]
-					newBranches[1] = values + ones
-
-					curDivs := newBranches[div]
-					newBranches[div] = values * 2 + curDivs
-
-					breaks += values
-				} else {
-					curs := newBranches[cur + 1]
-					newBranches[cur + 1] = values + curs
-				}
-			}
-			delete(branches)
-			branches = newBranches
-
-			if breaks + 1 >= limit {
-				// fmt.println(branches)
-				fmt.printfln(
-					"id: %d seconds: %d breaks: %d limit: %d",
-					unit.id,
-					seconds,
-					breaks + 1,
-					limit,
-				)
-				secondSum += seconds
-				// break outer
-				continue outer
-			}
-			seconds += 1
+	for unit in units {
+		memo := make(map[Memo_Key]int, arena_alloc)
+		lo := 0
+		hi := 1
+		for count_splits(1, hi, unit.growth, &memo) + 1 < unit.limit {
+			hi *= 2
 		}
-		delete(branches)
+		for lo < hi {
+			mid := (lo + hi) / 2
+			if count_splits(1, mid, unit.growth, &memo) + 1 >= unit.limit {
+				hi = mid
+			} else {
+				lo = mid + 1
+			}
+		}
+		fmt.printfln("id: %d seconds: %d", unit.id, lo + 1)
+		secondSum += lo + 1
 	}
 
 	fmt.println("sum seconds: ", secondSum)
