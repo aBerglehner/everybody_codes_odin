@@ -50,7 +50,7 @@ part1 :: proc() {
 		append(&mat, row)
 		// fmt.println(line)
 	}
-	utils.printMatInt(mat[:])
+	utils.printMat(mat[:])
 
 	rows := len(mat)
 	cols := len(mat[0])
@@ -144,7 +144,7 @@ part2 :: proc() {
 		append(&mat, row)
 		// fmt.println(line)
 	}
-	utils.printMatInt(mat[:])
+	utils.printMat(mat[:])
 
 	rows := len(mat)
 	cols := len(mat[0])
