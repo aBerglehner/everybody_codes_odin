@@ -240,8 +240,8 @@ Direction :: enum {
 Ghost2 :: struct {
 	colls: int,
 	dir:   Direction,
-	r:     i8,
-	c:     i8,
+	r:     i16,
+	c:     i16,
 }
 
 //TODO:(Alex) perf optimize this
@@ -289,7 +289,7 @@ part3 :: proc() {
 		for cur, colI in mat[rowI] {
 			if slice.contains(dirs[:], cur) {
 				d := getDirection(cur)
-				ghost := Ghost2{0, d, i8(rowI), i8(colI)}
+				ghost := Ghost2{0, d, i16(rowI), i16(colI)}
 				append(&ghosts, ghost)
 			}
 		}
@@ -300,15 +300,14 @@ part3 :: proc() {
 	//1_000_000_000_000
 	//update ghosts
 	collsLimit := 1_000_000_000_000
-	seen: [30][30]i8
-	generation: [30][30]int
+	seen: [25 * 25]i16
 	// seen := make(map[utils.Pos]int, arena_alloc)
 	for i in 1 ..= 100_000_000_000_000 {
 		if i % 10_000_000 == 0 {
 			fmt.printfln("round: %d", i)
 		}
 
-		firstGhostLoop(mat[:], &ghosts, &seen, &generation, i)
+		firstGhostLoop(mat[:], &ghosts, &seen, i)
 
 		allDead := secondGhostLoop(&ghosts, &seen)
 		if allDead {
@@ -317,6 +316,10 @@ part3 :: proc() {
 			fmt.println("we broke")
 			fmt.println()
 			break
+		}
+		//clear seen
+		for _, i in seen {
+			seen[i] = 0
 		}
 
 		// fmt.println()
@@ -328,34 +331,24 @@ part3 :: proc() {
 
 }
 
-firstGhostLoop :: proc(
-	mat: [][]u8,
-	ghosts: ^[dynamic]Ghost2,
-	seen: ^[30][30]i8,
-	generation: ^[30][30]int,
-	i: int,
-) {
+firstGhostLoop :: proc(mat: [][]u8, ghosts: ^[dynamic]Ghost2, seen: ^[25 * 25]i16, i: int) {
 	for i := len(ghosts) - 1; i >= 0; i -= 1 {
 		g := &ghosts[i]
 		alive := updateGhost2(mat, g)
 		if alive == 1 {
 			ordered_remove_dynamic_array(ghosts, i)
+		} else {
+			seen[g.r * 25 + g.c] += 1
 		}
-
-		if generation[g.r][g.c] != i {
-			generation[g.r][g.c] = i
-			seen[g.r][g.c] = 0
-		}
-		seen[g.r][g.c] += 1
 	}
 }
 
-secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[30][30]i8) -> bool {
+secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[25 * 25]i16) -> bool {
 	allDead := true
 	for i := len(ghosts) - 1; i >= 0; i -= 1 {
 		g := &ghosts[i]
 		//if g in seen -> nextDir 2
-		if seen[g.r][g.c] > 1 {
+		if seen[g.r * 24 + g.c] > 1 {
 			g.colls += 1
 			g.dir = nextDir2(g.dir, 2)
 		}
@@ -368,8 +361,8 @@ secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[30][30]i8) -> bool {
 	return allDead
 }
 
-dr := [4]i8{-1, 0, 1, 0}
-dc := [4]i8{0, 1, 0, -1}
+dr := [4]i16{-1, 0, 1, 0}
+dc := [4]i16{0, 1, 0, -1}
 
 updateGhost2 :: proc(mat: [][]u8, ghost: ^Ghost2) -> i8 {
 	rr := ghost.r + dr[ghost.dir]
