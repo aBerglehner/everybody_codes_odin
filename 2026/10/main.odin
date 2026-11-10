@@ -242,7 +242,10 @@ Ghost2 :: struct {
 	dir:   Direction,
 	r:     i16,
 	c:     i16,
+	alive: bool,
 }
+BOUND :: 23
+Ghost_COUNT :: 36
 
 //TODO:(Alex) perf optimize this
 part3 :: proc() {
@@ -284,13 +287,15 @@ part3 :: proc() {
 	// # -> wall, . -> free space, ^>v< -> dirs
 	//get matrix
 	//track every ghost
-	ghosts := make([dynamic]Ghost2, arena_alloc)
+	ghosts := [Ghost_COUNT]Ghost2{}
+	count := 0
 	for _, rowI in mat {
 		for cur, colI in mat[rowI] {
 			if slice.contains(dirs[:], cur) {
 				d := getDirection(cur)
-				ghost := Ghost2{0, d, i16(rowI), i16(colI)}
-				append(&ghosts, ghost)
+				ghost := Ghost2{0, d, i16(rowI), i16(colI), true}
+				ghosts[count] = ghost
+				count += 1
 			}
 		}
 	}
@@ -300,7 +305,7 @@ part3 :: proc() {
 	//1_000_000_000_000
 	//update ghosts
 	collsLimit := 1_000_000_000_000
-	seen: [25 * 25]i16
+	seen: [BOUND * BOUND]i16
 	// seen := make(map[utils.Pos]int, arena_alloc)
 	for i in 1 ..= 100_000_000_000_000 {
 		if i % 10_000_000 == 0 {
@@ -331,29 +336,51 @@ part3 :: proc() {
 
 }
 
-firstGhostLoop :: proc(mat: [][]u8, ghosts: ^[dynamic]Ghost2, seen: ^[25 * 25]i16, i: int) {
-	for i := len(ghosts) - 1; i >= 0; i -= 1 {
+firstGhostLoop :: proc(
+	mat: [][]u8,
+	ghosts: ^[Ghost_COUNT]Ghost2,
+	seen: ^[BOUND * BOUND]i16,
+	i: int,
+) {
+	for i in 0 ..< Ghost_COUNT {
 		g := &ghosts[i]
-		alive := updateGhost2(mat, g)
-		if alive == 1 {
-			ordered_remove_dynamic_array(ghosts, i)
+		if !g.alive {
+			continue
+		}
+		rr := g.r + dr[g.dir]
+		cc := g.c + dc[g.dir]
+
+		if mat[rr][cc] == '#' {
+			g.colls += 1
+			g.dir = nextDir2(g.dir, 1)
+			if g.colls >= Colls_Limit {
+				g.alive = false
+			}
 		} else {
-			seen[g.r * 25 + g.c] += 1
+			g.r = rr
+			g.c = cc
+		}
+
+		if g.alive {
+			seen[g.r * BOUND + g.c] += 1
 		}
 	}
 }
 
-secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[25 * 25]i16) -> bool {
+secondGhostLoop :: proc(ghosts: ^[Ghost_COUNT]Ghost2, seen: ^[BOUND * BOUND]i16) -> bool {
 	allDead := true
-	for i := len(ghosts) - 1; i >= 0; i -= 1 {
+	for i in 0 ..< Ghost_COUNT {
 		g := &ghosts[i]
 		//if g in seen -> nextDir 2
-		if seen[g.r * 24 + g.c] > 1 {
+		if !g.alive {
+			continue
+		}
+		if seen[g.r * BOUND + g.c] > 1 {
 			g.colls += 1
 			g.dir = nextDir2(g.dir, 2)
 		}
 		if g.colls >= Colls_Limit {
-			ordered_remove_dynamic_array(ghosts, i)
+			g.alive = false
 		} else {
 			allDead = false
 		}
@@ -363,24 +390,6 @@ secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[25 * 25]i16) -> bool {
 
 dr := [4]i16{-1, 0, 1, 0}
 dc := [4]i16{0, 1, 0, -1}
-
-updateGhost2 :: proc(mat: [][]u8, ghost: ^Ghost2) -> i8 {
-	rr := ghost.r + dr[ghost.dir]
-	cc := ghost.c + dc[ghost.dir]
-
-	if mat[rr][cc] == '#' {
-		ghost.colls += 1
-		ghost.dir = nextDir2(ghost.dir, 1)
-
-		if ghost.colls >= Colls_Limit {
-			return 1
-		}
-	} else {
-		ghost.r = rr
-		ghost.c = cc
-	}
-	return 0
-}
 
 nextDir2 :: proc(dir: Direction, turns: int) -> Direction {
 	//bitwise & 3 == %4
