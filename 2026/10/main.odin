@@ -227,8 +227,8 @@ part2 :: proc() {
 
 }
 
-// Colls_Limit := 10000
-Colls_Limit := 1_000_000_000_000
+Colls_Limit := 10000
+// Colls_Limit := 1_000_000_000_000
 
 Direction :: enum {
 	UP,
@@ -287,14 +287,14 @@ part3 :: proc() {
 	// # -> wall, . -> free space, ^>v< -> dirs
 	//get matrix
 	//track every ghost
-	ghosts := [Ghost_COUNT]Ghost2{}
+	ghosts := make([dynamic]Ghost2)
 	count := 0
 	for _, rowI in mat {
 		for cur, colI in mat[rowI] {
 			if slice.contains(dirs[:], cur) {
 				d := getDirection(cur)
 				ghost := Ghost2{0, d, i16(rowI), i16(colI), true}
-				ghosts[count] = ghost
+				append(&ghosts, ghost)
 				count += 1
 			}
 		}
@@ -312,9 +312,9 @@ part3 :: proc() {
 			fmt.printfln("round: %d", i)
 		}
 
-		firstGhostLoop(mat[:], &ghosts, &seen, i)
+		firstGhostLoop(mat[:], ghosts[:], &seen, i)
 
-		allDead := secondGhostLoop(&ghosts, &seen)
+		allDead := secondGhostLoop(ghosts[:], &seen)
 		if allDead {
 			fmt.println()
 			fmt.printfln("round: %d ghosts: %v", i, ghosts)
@@ -336,13 +336,8 @@ part3 :: proc() {
 
 }
 
-firstGhostLoop :: proc(
-	mat: [][]u8,
-	ghosts: ^[Ghost_COUNT]Ghost2,
-	seen: ^[BOUND * BOUND]i16,
-	i: int,
-) {
-	for i in 0 ..< Ghost_COUNT {
+firstGhostLoop :: proc(mat: [][]u8, ghosts: []Ghost2, seen: ^[BOUND * BOUND]i16, i: int) {
+	for i in 0 ..< len(ghosts) {
 		g := &ghosts[i]
 		if !g.alive {
 			continue
@@ -367,9 +362,9 @@ firstGhostLoop :: proc(
 	}
 }
 
-secondGhostLoop :: proc(ghosts: ^[Ghost_COUNT]Ghost2, seen: ^[BOUND * BOUND]i16) -> bool {
+secondGhostLoop :: proc(ghosts: []Ghost2, seen: ^[BOUND * BOUND]i16) -> bool {
 	allDead := true
-	for i in 0 ..< Ghost_COUNT {
+	for i in 0 ..< len(ghosts) {
 		g := &ghosts[i]
 		//if g in seen -> nextDir 2
 		if !g.alive {
