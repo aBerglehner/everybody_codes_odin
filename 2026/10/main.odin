@@ -302,17 +302,53 @@ part3 :: proc() {
 	fmt.println("ghosts: ", ghosts)
 	fmt.println("len ghosts: ", len(ghosts))
 
+	Traveled :: struct {
+		colls: int,
+		round: int,
+	}
 	//1_000_000_000_000
 	//update ghosts
-	collsLimit := 1_000_000_000_000
 	seen: [BOUND * BOUND]i16
-	// seen := make(map[utils.Pos]int, arena_alloc)
+	visited := make(map[Ghost2]Traveled, arena_alloc)
+
 	for i in 1 ..= 100_000_000_000_000 {
 		if i % 10_000_000 == 0 {
 			fmt.printfln("round: %d", i)
 		}
 
-		firstGhostLoop(mat[:], ghosts[:], &seen, i)
+		for i in 0 ..< len(ghosts) {
+			g := &ghosts[i]
+			signature := Ghost2 {
+				colls = i, //colls will just be the index so it is stable -> yeah I know...
+				dir   = g.dir,
+				r     = g.r,
+				c     = g.c,
+				alive = true,
+			}
+
+
+			if !g.alive {
+				continue
+			}
+			rr := g.r + dr[g.dir]
+			cc := g.c + dc[g.dir]
+
+			if mat[rr][cc] == '#' {
+				g.colls += 1
+				g.dir = nextDir2(g.dir, 1)
+				if g.colls >= Colls_Limit {
+					g.alive = false
+				}
+			} else {
+				g.r = rr
+				g.c = cc
+			}
+
+			if g.alive {
+				seen[g.r * BOUND + g.c] += 1
+			}
+		}
+
 
 		allDead := secondGhostLoop(ghosts[:], &seen)
 		if allDead {
