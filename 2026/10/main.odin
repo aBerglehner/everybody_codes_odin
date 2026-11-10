@@ -11,23 +11,6 @@ main :: proc() {
 	part3()
 }
 
-// Colls_Limit := 10000
-Colls_Limit := 1_000_000_000_000
-
-Direction :: enum {
-	UP,
-	RIGHT,
-	DOWN,
-	LEFT,
-}
-
-Ghost2 :: struct {
-	dir:   Direction,
-	r:     int,
-	c:     int,
-	colls: int,
-	alive: bool,
-}
 
 Ghost :: struct {
 	dir:   string,
@@ -152,30 +135,6 @@ nextDir :: proc(dirs: []string, curDir: string, turns: int) -> string {
 	return dirs[wantedIndex % l]
 }
 
-updateGhost2 :: proc(mat: [][]string, ghost: ^Ghost2) {
-	dr := [4]int{-1, 0, 1, 0}
-	dc := [4]int{0, 1, 0, -1}
-
-	rr := ghost.r + dr[int(ghost.dir)]
-	cc := ghost.c + dc[int(ghost.dir)]
-
-	if mat[rr][cc] == "#" {
-		ghost.colls += 1
-		ghost.dir = nextDir2(ghost.dir, 1)
-
-		if ghost.colls >= Colls_Limit {
-			ghost.alive = false
-		}
-	} else {
-		ghost.r = rr
-		ghost.c = cc
-	}
-}
-
-nextDir2 :: proc(dir: Direction, turns: int) -> Direction {
-	return Direction((int(dir) + turns) % 4)
-}
-
 //131029,130993 -> len and first is correct
 part2 :: proc() {
 	arena: vmem.Arena
@@ -266,7 +225,23 @@ part2 :: proc() {
 	//after each run check all ghosts -> if same pos
 	// ++collsion -> and call nextDirection twice
 
+}
 
+// Colls_Limit := 10000
+Colls_Limit := 1_000_000_000_000
+
+Direction :: enum {
+	UP,
+	RIGHT,
+	DOWN,
+	LEFT,
+}
+
+Ghost2 :: struct {
+	colls: int,
+	dir:   Direction,
+	r:     i8,
+	c:     i8,
 }
 
 //TODO:(Alex) perf optimize this
@@ -285,17 +260,22 @@ part3 :: proc() {
 	}
 
 
-	mat := make([dynamic][]string, arena_alloc)
+	mat := make([dynamic][]u8, arena_alloc)
 	for line in strings.split(string(data), "\n") {
 		if line == "" {
 			continue
 		}
 		fmt.println(line)
-		append(&mat, strings.split(line, ""))
+		strs := strings.split(line, "")
+		cU8 := make([dynamic]u8)
+		for s in strs {
+			append(&cU8, s[0])
+		}
+		append(&mat, cU8[:])
 	}
 	utils.printMat(mat[:])
 
-	dirs := [?]string{"^", ">", "v", "<"}
+	dirs := [?]u8{'^', '>', 'v', '<'}
 	// d1 := nextDir(dirs[:], "<", 1)
 	// d2 := nextDir(dirs[:], "<", 2)
 	// d3 := nextDir(dirs[:], "v", 1)
@@ -309,7 +289,7 @@ part3 :: proc() {
 		for cur, colI in mat[rowI] {
 			if slice.contains(dirs[:], cur) {
 				d := getDirection(cur)
-				ghost := Ghost2{d, rowI, colI, 0, true}
+				ghost := Ghost2{0, d, i8(rowI), i8(colI)}
 				append(&ghosts, ghost)
 			}
 		}
@@ -327,35 +307,22 @@ part3 :: proc() {
 		if i % 10_000_000 == 0 {
 			fmt.printfln("round: %d", i)
 		}
+
+		firstGhostLoop(mat[:], &ghosts, &seen, &generation, i)
+
+
 		allDead := true
-
-		for &g in ghosts {
-			if g.alive {
-				updateGhost2(mat[:], &g)
-			}
-			if g.alive {
-				if generation[g.r][g.c] != i {
-					generation[g.r][g.c] = i
-					seen[g.r][g.c] = 0
-				}
-
-				seen[g.r][g.c] += 1
-			}
-		}
-
 		for i := len(ghosts) - 1; i >= 0; i -= 1 {
 			g := &ghosts[i]
-			if g.alive {
-				//if g in seen -> nextDir 2
-				if seen[g.r][g.c] > 1 {
-					g.colls += 1
-					g.dir = nextDir2(g.dir, 2)
-				}
-				if g.colls >= Colls_Limit {
-					g.alive = false
-				} else {
-					allDead = false
-				}
+			//if g in seen -> nextDir 2
+			if seen[g.r][g.c] > 1 {
+				g.colls += 1
+				g.dir = nextDir2(g.dir, 2)
+			}
+			if g.colls >= Colls_Limit {
+				ordered_remove_dynamic_array(&ghosts, i)
+			} else {
+				allDead = false
 			}
 		}
 		if allDead {
@@ -373,18 +340,65 @@ part3 :: proc() {
 	//after each run check all ghosts -> if same pos
 	// ++collsion -> and call nextDirection twice
 
-
 }
 
-getDirection :: proc(s: string) -> Direction {
+firstGhostLoop :: proc(
+	mat: [][]u8,
+	ghosts: ^[dynamic]Ghost2,
+	seen: ^[30][30]i8,
+	generation: ^[30][30]int,
+	i: int,
+) {
+	for i := len(ghosts) - 1; i >= 0; i -= 1 {
+		g := &ghosts[i]
+		alive := updateGhost2(mat, g)
+		if alive == 1 {
+			ordered_remove_dynamic_array(ghosts, i)
+		}
+
+		if generation[g.r][g.c] != i {
+			generation[g.r][g.c] = i
+			seen[g.r][g.c] = 0
+		}
+		seen[g.r][g.c] += 1
+	}
+}
+
+dr := [4]i8{-1, 0, 1, 0}
+dc := [4]i8{0, 1, 0, -1}
+
+updateGhost2 :: proc(mat: [][]u8, ghost: ^Ghost2) -> i8 {
+	rr := ghost.r + dr[ghost.dir]
+	cc := ghost.c + dc[ghost.dir]
+
+	if mat[rr][cc] == '#' {
+		ghost.colls += 1
+		ghost.dir = nextDir2(ghost.dir, 1)
+
+		if ghost.colls >= Colls_Limit {
+			return 1
+		}
+	} else {
+		ghost.r = rr
+		ghost.c = cc
+	}
+	return 0
+}
+
+nextDir2 :: proc(dir: Direction, turns: int) -> Direction {
+	//bitwise & 3 == %4
+	return Direction((int(dir) + turns) & 3)
+}
+
+getDirection :: proc(s: u8) -> Direction {
 	switch s {
-	case "^":
+	case '^':
 		return .UP
-	case ">":
+	case '>':
 		return .RIGHT
-	case "v":
+	case 'v':
 		return .DOWN
-	case "<":
+	case '<':
 		return .LEFT
 	}
 	return .UP // fallback
