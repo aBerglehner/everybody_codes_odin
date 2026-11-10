@@ -310,21 +310,7 @@ part3 :: proc() {
 
 		firstGhostLoop(mat[:], &ghosts, &seen, &generation, i)
 
-
-		allDead := true
-		for i := len(ghosts) - 1; i >= 0; i -= 1 {
-			g := &ghosts[i]
-			//if g in seen -> nextDir 2
-			if seen[g.r][g.c] > 1 {
-				g.colls += 1
-				g.dir = nextDir2(g.dir, 2)
-			}
-			if g.colls >= Colls_Limit {
-				ordered_remove_dynamic_array(&ghosts, i)
-			} else {
-				allDead = false
-			}
-		}
+		allDead := secondGhostLoop(&ghosts, &seen)
 		if allDead {
 			fmt.println()
 			fmt.printfln("round: %d ghosts: %v", i, ghosts)
@@ -362,6 +348,24 @@ firstGhostLoop :: proc(
 		}
 		seen[g.r][g.c] += 1
 	}
+}
+
+secondGhostLoop :: proc(ghosts: ^[dynamic]Ghost2, seen: ^[30][30]i8) -> bool {
+	allDead := true
+	for i := len(ghosts) - 1; i >= 0; i -= 1 {
+		g := &ghosts[i]
+		//if g in seen -> nextDir 2
+		if seen[g.r][g.c] > 1 {
+			g.colls += 1
+			g.dir = nextDir2(g.dir, 2)
+		}
+		if g.colls >= Colls_Limit {
+			ordered_remove_dynamic_array(ghosts, i)
+		} else {
+			allDead = false
+		}
+	}
+	return allDead
 }
 
 dr := [4]i8{-1, 0, 1, 0}
