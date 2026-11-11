@@ -135,7 +135,6 @@ nextDir :: proc(dirs: []string, curDir: string, turns: int) -> string {
 	return dirs[wantedIndex % l]
 }
 
-//131029,130993 -> len and first is correct
 part2 :: proc() {
 	arena: vmem.Arena
 	arena_err := vmem.arena_init_growing(&arena)
@@ -162,10 +161,6 @@ part2 :: proc() {
 	utils.printMat(mat[:])
 
 	dirs := [?]string{"^", ">", "v", "<"}
-	// d1 := nextDir(dirs[:], "<", 1)
-	// d2 := nextDir(dirs[:], "<", 2)
-	// d3 := nextDir(dirs[:], "v", 1)
-	// fmt.printfln("d1: %s d2: %s d3: %s", d1, d2, d3)
 
 	// # -> wall, . -> free space, ^>v< -> dirs
 	//get matrix
@@ -222,9 +217,6 @@ part2 :: proc() {
 		// fmt.printfln("round: %d ghosts: %v", i, ghosts)
 	}
 
-	//after each run check all ghosts -> if same pos
-	// ++collsion -> and call nextDirection twice
-
 }
 
 // Colls_Limit := 10000
@@ -264,7 +256,6 @@ Cycle_Snapshot :: struct {
 	colls: [Ghost_COUNT]int,
 }
 
-//TODO:(Alex) perf optimize this
 part3 :: proc() {
 	arena: vmem.Arena
 	arena_err := vmem.arena_init_growing(&arena)
@@ -296,10 +287,6 @@ part3 :: proc() {
 	utils.printMat(mat[:])
 
 	dirs := [?]u8{'^', '>', 'v', '<'}
-	// d1 := nextDir(dirs[:], "<", 1)
-	// d2 := nextDir(dirs[:], "<", 2)
-	// d3 := nextDir(dirs[:], "v", 1)
-	// fmt.printfln("d1: %s d2: %s d3: %s", d1, d2, d3)
 
 	// # -> wall, . -> free space, ^>v< -> dirs
 	//get matrix
@@ -401,9 +388,6 @@ part3 :: proc() {
 		}
 		round += 1
 	}
-
-	//after each run check all ghosts -> if same pos
-	// ++collsion -> and call nextDirection twice
 
 }
 
