@@ -227,8 +227,8 @@ part2 :: proc() {
 
 }
 
-Colls_Limit := 10000
-// Colls_Limit := 1_000_000_000_000
+// Colls_Limit := 10000
+Colls_Limit := 1_000_000_000_000
 
 Direction :: enum {
 	UP,
@@ -245,7 +245,24 @@ Ghost2 :: struct {
 	alive: bool,
 }
 BOUND :: 23
-Ghost_COUNT :: 36
+Ghost_COUNT :: 40
+MAX_ROUNDS :: 100_000_000_000_000
+
+Motion_State :: struct {
+	alive: bool,
+	dir:   Direction,
+	r:     i16,
+	c:     i16,
+}
+
+Cycle_Key :: struct {
+	ghosts: [Ghost_COUNT]Motion_State,
+}
+
+Cycle_Snapshot :: struct {
+	round: int,
+	colls: [Ghost_COUNT]int,
+}
 
 //TODO:(Alex) perf optimize this
 part3 :: proc() {
@@ -255,7 +272,7 @@ part3 :: proc() {
 	arena_alloc := vmem.arena_allocator(&arena)
 	defer vmem.arena_destroy(&arena)
 
-	path := "./10/test"
+	path := "./10/input"
 	data, err := os.read_entire_file(path, arena_alloc)
 	if err != nil {
 		fmt.println("err reading file")
@@ -302,37 +319,60 @@ part3 :: proc() {
 	fmt.println("ghosts: ", ghosts)
 	fmt.println("len ghosts: ", len(ghosts))
 
-	Traveled :: struct {
-		colls: int,
-		round: int,
-	}
-	//1_000_000_000_000
-	//update ghosts
 	seen: [BOUND * BOUND]i16
-	visited := make(map[Ghost2]Traveled, arena_alloc)
-
-	for i in 1 ..= 100_000_000_000_000 {
-		if i % 10_000_000 == 0 {
-			fmt.printfln("round: %d", i)
+	visited := make(map[Cycle_Key]Cycle_Snapshot, arena_alloc)
+	round := 1
+	outer: for round <= MAX_ROUNDS {
+		// At the start of a round, movement depends on live ghosts' positions
+		// and directions. Collision totals affect only when each ghost dies.
+		key := Cycle_Key{}
+		snapshot := Cycle_Snapshot {
+			round = round,
+		}
+		for ghost_i in 0 ..< len(ghosts) {
+			g := ghosts[ghost_i]
+			key.ghosts[ghost_i] = Motion_State{g.alive, g.dir, g.r, g.c}
+			snapshot.colls[ghost_i] = g.colls
 		}
 
-		for i in 0 ..< len(ghosts) {
-			g := &ghosts[i]
-			signature := Ghost2 {
-				colls = i, //colls will just be the index so it is stable -> yeah I know...
-				dir   = g.dir,
-				r     = g.r,
-				c     = g.c,
-				alive = true,
+		previous, found := visited[key]
+		if found {
+			cycle_len := round - previous.round
+			if cycle_len > 0 {
+				cycles_to_skip := (MAX_ROUNDS - round + 1) / cycle_len
+				innerGhost1: for ghost_i in 0 ..< len(ghosts) {
+					g := &ghosts[ghost_i]
+					if !g.alive {
+						continue innerGhost1
+					}
+					delta := g.colls - previous.colls[ghost_i]
+					if delta > 0 {
+						until_death := (Colls_Limit - 1 - g.colls) / delta
+						cycles_to_skip = min(cycles_to_skip, until_death)
+					}
+				}
+				if cycles_to_skip > 0 {
+					for ghost_i in 0 ..< len(ghosts) {
+						g := &ghosts[ghost_i]
+						if g.alive {
+							delta := g.colls - previous.colls[ghost_i]
+							g.colls += cycles_to_skip * delta
+						}
+					}
+					round += cycles_to_skip * cycle_len
+					continue outer
+				}
 			}
+		}
+		visited[key] = snapshot
 
-
+		innerGhost2: for ghost_i in 0 ..< len(ghosts) {
+			g := &ghosts[ghost_i]
 			if !g.alive {
-				continue
+				continue innerGhost2
 			}
 			rr := g.r + dr[g.dir]
 			cc := g.c + dc[g.dir]
-
 			if mat[rr][cc] == '#' {
 				g.colls += 1
 				g.dir = nextDir2(g.dir, 1)
@@ -343,28 +383,23 @@ part3 :: proc() {
 				g.r = rr
 				g.c = cc
 			}
-
 			if g.alive {
 				seen[g.r * BOUND + g.c] += 1
 			}
 		}
 
-
 		allDead := secondGhostLoop(ghosts[:], &seen)
 		if allDead {
 			fmt.println()
-			fmt.printfln("round: %d ghosts: %v", i, ghosts)
+			fmt.printfln("round: %d ghosts: %v", round, ghosts)
 			fmt.println("we broke")
 			fmt.println()
 			break
 		}
-		//clear seen
-		for _, i in seen {
-			seen[i] = 0
+		for cell in 0 ..< len(seen) {
+			seen[cell] = 0
 		}
-
-		// fmt.println()
-		// fmt.printfln("round: %d ghosts: %v", i, ghosts)
+		round += 1
 	}
 
 	//after each run check all ghosts -> if same pos
