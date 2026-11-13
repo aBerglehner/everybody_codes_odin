@@ -425,10 +425,114 @@ part3 :: proc() {
 	fmt.println()
 	fmt.println()
 
-	sum2 := mutationMin(adj, portals)
+	sum2 := mutationMinPart3(adj, portals)
 
 	res := sum - sum2
 	fmt.printfln("res: %d", res)
 
 
+}
+
+mutationMinPart3 :: proc(adj: map[int][dynamic]int, portals: int) -> int {
+	//1. get distribution -> portals / 8
+	distribution := portals / 8
+	//2. start at 1 till 1+distribution
+	for i := 1; i <= portals; i += 1 {
+		portal := i
+		crystals := [8]int{}
+		crystals[0] = i
+		for l := 0; l < 7; l += 1 {
+			newP := portal + distribution
+			if newP == portals {
+				portal = portals
+			} else {
+				portal = newP % portals
+			}
+
+			crystals[i + 1] = portal
+		}
+
+		//3. try every compination of the selected crystals
+		// generatePairs()
+		// loop through it
+		// add every Pair to adj
+		// get value and diff to min  -> v := getTeleportationSum2(adj, i)
+		// cleanup every Pair
+
+	}
+
+	minValue := 999_999_999_999
+	fmt.printfln("min: %d", minValue)
+	return minValue
+}
+
+addPair :: proc(adj: map[int][dynamic]int, a: int, b: int) {
+	append(&adj[a], b)
+	append(&adj[b], a)
+}
+
+cleanupPair :: proc(adj: map[int][dynamic]int, a: int, b: int) {
+	for i := len(adj[a]) - 1; i >= 0; i -= 1 {
+		v := adj[a][i]
+		if v == b {
+			ordered_remove(&adj[a], i)
+			break
+		}
+	}
+	for i := len(adj[b]) - 1; i >= 0; i -= 1 {
+		v := adj[b][i]
+		if v == a {
+			ordered_remove(&adj[b], i)
+			break
+		}
+	}
+}
+
+Combinations :: struct {
+	pair: []Pair,
+}
+
+//TODO
+generatePairs :: proc(arr: []int, arena_alloc: mem.Allocator) -> []Combinations {
+	results := make([dynamic]Combinations, arena_alloc)
+
+	backtrack :: proc(remaining: []int, pairs: [dynamic]Pair) {
+		if len(remaining) == 0 {
+			combination := Combinations {
+				pair = make([]Pair, len(pairs)),
+			}
+
+			for i in 0 ..< len(pairs) {
+				combination.pair[i] = pairs[i]
+			}
+
+			append(&results, combination)
+			return
+		}
+
+		first := remaining[0]
+
+		for i in 1 ..< len(remaining) {
+			second := remaining[i]
+
+			next: [dynamic]int
+
+			for j in 1 ..< len(remaining) {
+				if j != i {
+					append(&next, remaining[j])
+				}
+			}
+
+			append(&pairs, Pair{first, second})
+
+			backtrack(next[:], pairs)
+
+			pop(&pairs)
+			delete(next)
+		}
+	}
+
+	backtrack(arr, {})
+
+	return results[:]
 }
