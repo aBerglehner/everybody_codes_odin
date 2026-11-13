@@ -12,7 +12,7 @@ import "core:strconv"
 import "core:strings"
 
 main :: proc() {
-	part2()
+	part3()
 }
 
 Pair :: struct {
@@ -199,7 +199,7 @@ part2 :: proc() {
 	// adj[portals] = make([dynamic]int, 0, 3)
 	// append(&adj[portals], portals - 1, 1)
 
-	for i := 0; i <= portals; i += 1 {
+	for i := 1; i <= portals; i += 1 {
 		prev1 := calcIndex(i - 1, portals)
 		prev2 := calcIndex(i - 2, portals)
 		prev3 := calcIndex(i - 3, portals)
@@ -234,6 +234,10 @@ part2 :: proc() {
 		append(&adj[b], a)
 	}
 	fmt.println("adj after: ", adj)
+	fmt.println()
+	fmt.println()
+	fmt.println()
+	fmt.println()
 
 	sum2 := mutationMin(adj, portals)
 
@@ -247,8 +251,8 @@ mutationMin :: proc(adj: map[int][dynamic]int, portals: int) -> int {
 	minValue := 999_999_999_999
 	for i := 1; i <= portals; i += 1 {
 		a := i
-		for b := 1; b <= portals; b += 1 {
-			if a == b {
+		for b := 5; b <= portals; b += 1 {
+			if abs(a - b) < 3 {
 				continue
 			}
 
@@ -265,20 +269,22 @@ mutationMin :: proc(adj: map[int][dynamic]int, portals: int) -> int {
 				minValue = sum2
 			}
 
-			for v, i in adj[a] {
+			for i := len(adj[a]) - 1; i >= 0; i -= 1 {
+				v := adj[a][i]
 				if v == b {
-					unordered_remove(&adj[a], i)
+					ordered_remove(&adj[a], i)
+					break
 				}
 			}
-			for v, i in adj[b] {
+			for i := len(adj[b]) - 1; i >= 0; i -= 1 {
+				v := adj[b][i]
 				if v == a {
-					unordered_remove(&adj[b], i)
+					ordered_remove(&adj[b], i)
+					break
 				}
 			}
 		}
-
 	}
-
 	fmt.printfln("min: %d", minValue)
 	return minValue
 }
@@ -327,10 +333,102 @@ calcIndex :: proc(i: int, l: int) -> int {
 	}
 	if i < 0 {
 		a := abs(i)
-		return l - a - 1
+		return l - a
 	}
 	if i > l {
 		return i % l
 	}
 	return i
+}
+
+part3 :: proc() {
+	arena: vmem.Arena
+	arena_err := vmem.arena_init_growing(&arena)
+	ensure(arena_err == nil)
+	arena_alloc := vmem.arena_allocator(&arena)
+	context.allocator = arena_alloc
+	defer vmem.arena_destroy(&arena)
+
+	path := "./11/test"
+	data, err := os.read_entire_file(path, arena_alloc)
+	if err != nil {
+		fmt.println("err reading file")
+		return
+	}
+
+	portals := 0
+	connections := make([dynamic]Pair, arena_alloc)
+	firstStep := true
+	for line, i in strings.split(string(data), "\n") {
+		if line == "" {
+			firstStep = false
+			continue
+		}
+		if firstStep {
+			strs := strings.split(line, ": ")
+			n, _ := strconv.parse_int(strs[1])
+			portals = n
+		} else {
+			strs := strings.split(line, " ")
+			a, _ := strconv.parse_int(strs[0])
+			b, _ := strconv.parse_int(strs[1])
+			append(&connections, Pair{a, b})
+		}
+		// fmt.println(line)
+	}
+	fmt.printfln("portals: %d connections: %v", portals, connections)
+	//3 nearest protals
+	adj := make(map[int][dynamic]int, arena_alloc)
+	// adj[1] = make([dynamic]int, 0, 3)
+	// append(&adj[1], 2, portals)
+	//
+	// adj[portals] = make([dynamic]int, 0, 3)
+	// append(&adj[portals], portals - 1, 1)
+
+	for i := 1; i <= portals; i += 1 {
+		prev1 := calcIndex(i - 1, portals)
+		prev2 := calcIndex(i - 2, portals)
+		prev3 := calcIndex(i - 3, portals)
+		cur := i
+		next1 := calcIndex(i + 1, portals)
+		next2 := calcIndex(i + 2, portals)
+		next3 := calcIndex(i + 3, portals)
+		adj[cur] = make([dynamic]int, arena_alloc)
+		s := []int{prev3, prev2, prev1, next3, next2, next1}
+		for i := len(s) - 1; i >= 0; i -= 1 {
+			if s[i] != 0 {
+				append(&adj[cur], s[i])
+			}
+		}
+	}
+	delete_key(&adj, 0)
+	fmt.println("adj before: ", adj)
+
+	sum := 0
+	for i in 1 ..= portals {
+		v := getTeleportationSum2(adj, i)
+		sum += v
+	}
+	fmt.printfln("sum: %d", sum)
+
+	//now we add connections
+	for pair in connections {
+		//we add a -> b and b -> a
+		a := pair.a
+		b := pair.b
+		append(&adj[a], b)
+		append(&adj[b], a)
+	}
+	fmt.println("adj after: ", adj)
+	fmt.println()
+	fmt.println()
+	fmt.println()
+	fmt.println()
+
+	sum2 := mutationMin(adj, portals)
+
+	res := sum - sum2
+	fmt.printfln("res: %d", res)
+
+
 }
